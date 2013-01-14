@@ -31,6 +31,11 @@
     <modules>
         <module>service</module>
         <module>clients</module>
+        <module>webapp</module>
+        <module>stormedge</module>
+        <module>stormedge</module>
+        <module>stormedge</module>
+        <module>courses</module>
     </modules>
 
 </project>
