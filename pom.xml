@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>oop.kevin</groupId>
+    <artifactId>appengine</artifactId>
+    <version>10.0</version>
+    <name>appengine :: Project</name>
+    <packaging>pom</packaging>
+    <description>appengine based JavaEE application reference architecture. </description>
+    <url>https://github.com/kevinleee/appengine</url>
+    <inceptionYear>2012-2013</inceptionYear>
+    <organization>
+        <name>机构</name>
+        <url>git@github.com:kevinleee/appengine.git</url>
+    </organization>
+    <developers>
+        <developer>
+            <id>MichaelLee</id>
+            <name>Michael Lee</name>
+            <email>lishanren at sunland.org.cn</email>
+            <organization>Sunland</organization>
+            <roles>
+                <role>Project lead</role>
+            </roles>
+            <timezone>+8</timezone>
+        </developer>
+    </developers>
+
+    <modules>
+        <module>service</module>
+        <module>clients</module>
+    </modules>
+
+</project>
