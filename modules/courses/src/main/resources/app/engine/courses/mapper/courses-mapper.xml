@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.engine.courses.dao.CoursesDao">
+    <!--  客户结果封装   -->
+    <resultMap id="coursesResult" type="app.engine.courses.entity.Courses">
+        <result column="id" property="customerId" />
+        <result column="title" property="title" />
+        <result column="subTitle" property="subTitle" />
+        <result column="keyWords" property="keyWords" />
+        <result column="summary" property="summary" />
+        <result column="goal" property="goal" />
+        <result column="audience" property="audience" />
+        <result column="requirements" property="requirements" />
+        <result column="level" property="level" />
+        <result column="privacy" property="privacy" />
+        <result column="price" property="price" />
+        <result column="couponCodes" property="couponCodes" />
+        <result column="images" property="images" />
+        <result column="video" property="video" />
+        <result column="unPublish" property="unPublish" />
+        <result column="isFree" property="isFree" />
+
+        <!--  关系信息   -->
+        <result column="categoryId" property="categoryId" />
+    </resultMap>
+
+    <sql id="customerRelationWhere">
+        <where>
+            a.customerStatus=0
+            <include refid="common.dynamicConditionsNoWhere"/>
+        </where>
+    </sql>
+
+    <sql id="customerRelationSelect">
+		SELECT a.id,a.customerLevel,a.categroyIdString,a.customerStatus,a.email,a.headImage,a.headImageIn,a.mobile,a.msn,a.nickName,a.realName,a.registerDate,a.major,a.vip,
+		a.sex,a.provinceId,a.cityId,a.integral,b.id AS crid,b.customerId AS cusid,b.customerFriendId,b.relationType,b.createDate AS relationCreateDate FROM customer a INNER JOIN
+	</sql>
+
+
+    <sql id="findCustomerColumn">
+		SELECT  DISTINCT cus.id,cus.email,cus.realName,cus.nickName,cus.headImage,cus.headImageIn,cus.headImageMin,cus.sex,cus.provinceId,cus.cityId ,cus.major,
+		cus.categroyIdString,cus.vip,cus.customerStatus,cus.customerLevel,cus.createDate AS createDate
+	</sql>
+
+
+    <sql id="dynaicConditionsWhereIf">
+        <if test="condition.class.simpleName=='SingleFieldCondition'">
+            <if test="condition.newValue!=null and  condition.newValue.toString().length()>0">
+                AND <include refid="common.andCondition"/>
+            </if>
+        </if>
+        <if test="condition.class.simpleName=='MultiFieldCondition'">
+            <if test="condition.newValue!=null and  condition.newValue.toString().length()>0">
+                AND (
+                <foreach collection="condition.singleConditions" item="orCondition" index="orIndex">
+                    <if test="orIndex>0"> OR </if>
+                    <include refid="common.orCondition"/>
+                </foreach>
+                )
+            </if>
+        </if>
+    </sql>
+
+    <!--  查询客户关系信息，我的粉丝，动态拼接条件   a.id=b.customerFriendId  -->
+    <select id="findFansCustomerRelations" resultMap="customerRelationResult">
+        <include refid="customerRelationSelect"/>
+        customerRelation b ON a.id=b.customerFriendId
+        <include refid="customerRelationWhere"/>
+    </select>
+
+    <!--  查询客户关系信息，我关注的人，动态拼接条件  a.id=b.customerId   -->
+    <select id="findAttentionCustomerRelations" resultMap="customerRelationResult">
+        <include refid="customerRelationSelect"/>
+        customerRelation b ON a.id=b.customerId
+        <include refid="customerRelationWhere"/>
+    </select>
+
+    <!--  查询客户关系信息，我的粉丝人数count  -->
+    <select id="findFansCustomerRelationCount" resultType="int">
+		SELECT COUNT(a.id) AS fansCount FROM customer a INNER JOIN customerRelation b ON a.id=b.customerFriendId
+		WHERE b.customerId=#{customerId}
+	</select>
+
+    <!--   查询客户关系信息，我关注的人数count  -->
+    <select id="findAttentionCustomerRelationCount" resultType="int">
+		SELECT COUNT(a.id) AS attentionCount FROM customer a INNER JOIN  customerRelation b ON a.id=b.customerId
+		WHERE b.customerFriendId=#{customerFriendId}
+	</select>
+
+    <!--   查询客户关系信息，我关注的人数count  -->
+    <select id="findMutualCustomerRelationCount" resultType="int">
+		SELECT COUNT(a.id) AS attentionCount FROM customer a INNER JOIN  customerRelation b ON a.id=b.customerFriendId
+		WHERE b.customerId=#{customerId} AND b.relationType=2
+	</select>
+
+
+    <!--   后台查询用户关系数据   -->
+    <select id="findCustomerRelations" resultMap="customerRelationResult">
+        <!--关注的人-->
+        (<include refid="customerRelationSelect"/>
+        customerRelation b ON a.id=b.customerId
+        <include refid="customerRelationWhere"/>
+        )
+        <!-- 粉丝   -->
+        UNION DISTINCT
+        (<include refid="customerRelationSelect"/>
+        customerRelation b ON a.id=b.customerFriendId
+        <where>
+            <if test="conditionsTwo!=null">
+                <foreach collection="conditionsTwo" item="condition" index="index">
+                    <include refid="dynaicConditionsWhereIf"/>
+                </foreach>
+            </if>
+        </where>
+        )
+    </select>
+
+    <!--  查询系统推荐用户 和按规则过滤 3级以上，购买了相同商品的，注册时间倒序的  推给用户关注的数据信息   -->
+    <select id="findAutoRecommendCustomer" resultType="com.haixue.customer.model.Customer">
+        SELECT DISTINCT t.* FROM (
+        <!-- 查询系统手动推荐用户   -->
+        (<include refid="findCustomerColumn"/>
+        FROM recommendcustomer rc JOIN recommendcustomercustomer rcc JOIN recommendcustomerrecommendplace rcrp
+        JOIN recommendcustomercategory rcg ON rc.id=rcc.recommendCustomerId AND rc.id=rcrp.recommendCustomerId AND rc.id=rcg.recommendCustomerId
+        AND rcc.recommendCustomerId=rcrp.recommendCustomerId JOIN customer cus ON rcc.customerId=cus.id
+        <where>
+            cus.customerStatus=0
+            <if test="conditions!=null">
+                <foreach collection="conditions" item="condition" index="index">
+                    <include refid="dynaicConditionsWhereIf"/>
+                </foreach>
+            </if>
+        </where>
+        ORDER BY rcc.inTop DESC LIMIT 100 )
+        UNION DISTINCT
+        <!-- 查询同分类下的用户级别大于指定条件的 -->
+        (<include refid="findCustomerColumn"/>
+        FROM customer cus JOIN customercategory cusc ON cus.id=cusc.customerId
+        <where>
+            cus.customerStatus=0
+            <if test="conditionsTwo!=null">
+                <foreach collection="conditionsTwo" item="condition" index="index">
+                    <include refid="dynaicConditionsWhereIf"/>
+                </foreach>
+            </if>
+        </where>
+        ORDER BY cus.customerLevel DESC LIMIT 100)
+        <!--  购买了同一商品的用户   -->
+        UNION DISTINCT
+        (<include refid="findCustomerColumn"/>
+        FROM customer cus JOIN ordergoodsrecord orderrecord  JOIN goods goods ON cus.id=orderrecord.customerId AND goods.id=orderrecord.goodid
+        <where>
+            cus.customerStatus=0
+            <if test="conditionsThree!=null">
+                <foreach collection="conditionsThree" item="condition" index="index">
+                    <include refid="dynaicConditionsWhereIf"/>
+                </foreach>
+            </if>
+        </where>
+        LIMIT 100)
+        <!--  同一分类下用户注册时间倒序   -->
+        UNION DISTINCT
+        (<include refid="findCustomerColumn"/>
+        FROM customer cus JOIN customercategory cusc ON cus.id=cusc.customerId
+        <where>
+            cus.customerStatus=0
+            <if test="conditionsFour!=null">
+                <foreach collection="conditionsFour" item="condition" index="index">
+                    <include refid="dynaicConditionsWhereIf"/>
+                </foreach>
+            </if>
+        </where>
+        ORDER BY cus.createDate DESC LIMIT 100)) t LEFT JOIN customerRelation cr ON t.id=cr.customerId
+        <where>
+            <!--  <if test="conditionsFour!=null">
+                 t.id not in
+                 <foreach item="item" index="index" collection="conditionsFour" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+                and
+            </if> --><!-- 排除已经关注的用户 -->
+            t.id!=#{customerId} AND t.id NOT IN (SELECT tmp.customerId FROM customerRelation tmp WHERE tmp.customerFriendId=#{customerId})
+        </where>
+    </select>
+
+</mapper>
